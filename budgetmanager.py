@@ -1,5 +1,8 @@
 import csv
 import os
+from collections import defaultdict
+
+FIELDNAMES = ['date', 'amount', 'category', 'description']
 
 class Transaction:
     def __init__(self, date, amount, category, description):
@@ -27,16 +30,19 @@ class BudgetManager:
             with open(self.file_path, newline='') as csvfile:
                 reader = csv.DictReader(csvfile)
                 for row in reader:
-                    t = Transaction(row['date'], row['amount'], row['category'], row['description'])
-                    transactions.append(t)
+                    try:
+                        transactions.append(Transaction(
+                            row['date'], row['amount'], row['category'], row['description']
+                        ))
+                    except KeyError:
+                        continue 
         return transactions
 
     def add_transaction(self, transaction):
         self.transactions.append(transaction)
-        write_header = not os.path.exists(self.file_path)
+        write_header = not os.path.exists(self.file_path) or os.path.getsize(self.file_path) == 0
         with open(self.file_path, 'a', newline='') as csvfile:
-            fieldnames = ['date', 'amount', 'category', 'description']
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer = csv.DictWriter(csvfile, fieldnames=FIELDNAMES)
             if write_header:
                 writer.writeheader()
             writer.writerow(transaction.to_dict())
@@ -47,10 +53,8 @@ class BudgetManager:
         return income, expenses, income + expenses
 
     def get_by_category(self):
-        categories = {}
+        categories = defaultdict(float)
         for t in self.transactions:
-            if t.category not in categories:
-                categories[t.category] = 0
             categories[t.category] += t.amount
         return categories
 
@@ -63,17 +67,17 @@ def main():
         print("3 - Ausgaben nach Kategorie")
         print("4 - Beenden")
 
-        choice = input("Auswahl: ")
+        choice = input("Auswahl: ").strip()
 
         if choice == '1':
-            date = input("Datum (YYYY-MM-DD): ")
+            date = input("Datum (YYYY-MM-DD): ").strip()
             try:
-                amount = float(input("Betrag (+ Einnahme / - Ausgabe): "))
+                amount = float(input("Betrag (+ Einnahme / - Ausgabe): ").strip())
             except ValueError:
                 print("Ungültiger Betrag.")
                 continue
-            category = input("Kategorie: ")
-            description = input("Beschreibung: ")
+            category = input("Kategorie: ").strip()
+            description = input("Beschreibung: ").strip()
             t = Transaction(date, amount, category, description)
             manager.add_transaction(t)
             print("Transaktion gespeichert.")
@@ -90,6 +94,7 @@ def main():
                 print(f"{cat}: {total:.2f}")
 
         elif choice == '4':
+            print("Programm beendet.")
             break
 
         else:
